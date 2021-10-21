@@ -1,9 +1,10 @@
 # This makefile probably does not work with anything except GCC and maybe Clang.
 # It uses the -MMD flag so that the compiler generates make dependency files automagically.
 
+LIBS := wayland-client harfbuzz fontconfig freetype2
 CC = cc
-CFLAGS := -Iinclude -std=c11 -g -O2 -D_GNU_SOURCE # TODO remove when memfd_create() is no longer used
-LDFLAGS := -lwayland-client
+CFLAGS := $(foreach lib,$(LIBS),$(shell pkg-config --cflags $(lib))) -Iinclude -std=c11 -g -O2 -D_GNU_SOURCE # TODO remove when memfd_create() is no longer used
+LDFLAGS := $(foreach lib,$(LIBS),$(shell pkg-config --libs $(lib)))
 
 EXAMPLES := $(wildcard example/*.c)
 EXAMPLE_EXECS := $(patsubst %.c,target/%,$(EXAMPLES))

@@ -23,6 +23,11 @@ main()
 	atto_progbar_set_progress(pb2, 0.5);
 	atto_progbar_set_vertical(pb2, 1);
 	atto_grid_set(grid, 1, 1, (void *) pb2);
+	struct atto_label *lbl = atto_label_new(&(struct atto_label_options) {
+		.text = "Hijack",
+		.fg = ATTOUI_RGB(127, 0, 127)
+	});
+	atto_grid_set(grid, 1, 0, (void *) lbl);
 	atto_box_set_widget(box, (void *) grid);
 	attoui_set_root(atto, (void *) box);
 	while (1) {

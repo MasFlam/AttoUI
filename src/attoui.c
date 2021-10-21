@@ -26,8 +26,22 @@ attoui_init(const struct attoui_options *opts)
 	atto->stride = atto->width * PIXEL_SIZE;
 	atto->root = NULL;
 	
+	if (!FcInit()) {
+		free(atto);
+		return NULL;
+	}
+	
+	FT_Error fterr = FT_Init_FreeType(&atto->ft);
+	if (fterr) {
+		FcFini();
+		free(atto);
+		return NULL;
+	}
+	
 	atto->wl.disp = wl_display_connect(NULL);
 	if (!atto->wl.disp) {
+		FT_Done_FreeType(atto->ft);
+		FcFini();
 		free(atto);
 		return NULL;
 	}

@@ -6,15 +6,26 @@ atto_label_new(const struct atto_label_options *opts)
 	struct atto_label *lbl = malloc(sizeof(struct atto_label));
 	if (!lbl) return NULL;
 	lbl->wgt.wgt_type = ATTOUI_WIDGET_LABEL;
-	if (opts && opts->text) {
-		lbl->text = strdup(opts->text);
-		if (!lbl->text) {
-			free(lbl);
-			return NULL;
+	if (opts) {
+		if (opts->text) {
+			lbl->text = strdup(opts->text);
+			if (!lbl->text) {
+				free(lbl);
+				return NULL;
+			}
 		}
+		lbl->fg = opts->fg;
 	} else {
 		lbl->text = NULL;
+		lbl->fg = ATTOUI_BLACK;
 	}
+	lbl->hb_buf = hb_buffer_create();
+	if (!lbl->hb_buf) {
+		free(lbl->text);
+		free(lbl);
+		return NULL;
+	}
+	lbl->changed = LABEL_CHANGED_ALL;
 	return lbl;
 }
 
@@ -35,5 +46,21 @@ atto_label_set_text(struct atto_label *lbl, const char *text)
 		if (!s) return -1;
 		lbl->text = s;
 	}
+	lbl->changed |= LABEL_CHANGED_TEXT;
 	return 0;
+}
+
+uint32_t
+atto_label_get_fg(struct atto_label *lbl)
+{
+	return lbl->fg;
+}
+
+uint32_t
+atto_label_set_fg(struct atto_label *lbl, uint32_t fg)
+{
+	uint32_t old = lbl->fg;
+	lbl->fg = fg;
+	lbl->changed |= LABEL_CHANGED_FG;
+	return old;
 }

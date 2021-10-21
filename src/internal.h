@@ -1,8 +1,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <hb.h>
+#include <hb-ft.h>
+#include <fontconfig/fontconfig.h>
 #include <wayland-client.h>
 #include <attoui.h>
+
+#define LABEL_CHANGED_ALL (LABEL_CHANGED_FONT | LABEL_CHANGED_TEXT | LABEL_CHANGED_FG)
+#define LABEL_CHANGED_FONT (UINT16_C(1) << 0)
+#define LABEL_CHANGED_TEXT (UINT16_C(1) << 1)
+#define LABEL_CHANGED_FG (UINT16_C(1) << 2)
 
 struct attoui {
 	struct {
@@ -21,6 +29,7 @@ struct attoui {
 	uint32_t width;
 	uint32_t height;
 	uint32_t stride;
+	FT_Library ft;
 	struct atto_widget *root;
 };
 
@@ -56,5 +65,10 @@ struct atto_progbar {
 
 struct atto_label {
 	struct atto_widget wgt;
+	uint16_t changed;
 	char *text;
+	hb_buffer_t *hb_buf;
+	hb_font_t *hb_font;
+	FT_Face ft_face;
+	uint32_t fg;
 };

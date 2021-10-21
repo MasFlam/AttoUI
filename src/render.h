@@ -26,6 +26,9 @@ static inline void render_progbar(struct attoui *atto, void *wgt, uint32_t offse
                                   uint32_t width, uint32_t height, uint32_t stride);
 static inline void render_label(struct attoui *atto, void *wgt, uint32_t offset,
                                 uint32_t width, uint32_t height, uint32_t stride);
+static inline void draw_glyph(struct attoui *atto, FT_Bitmap *bitmap, uint32_t fg,
+                              uint16_t x, uint16_t y, uint32_t offset, uint32_t width,
+                              uint32_t height, uint32_t stride);
 
 void
 render_box(struct attoui *atto, void *wgt, uint32_t offset, uint32_t width,
@@ -139,7 +142,73 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
 {
 	struct atto_label *lbl = wgt;
 	if (!lbl->text) return;
-	// TODO: use harfbuzz + freetype (+ maybe cairo)
+	
+	if (lbl->changed & LABEL_CHANGED_FONT) {
+		FT_Face face;
+		FT_New_Face(atto->ft, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0, &face); // TODO: use fontconfig
+		// TODO: adjustable label font size
+		FT_Set_Char_Size(face, 0, 100*64, 0, 0); // TODO: plug in DPI into here
+		hb_font_t *font = hb_ft_font_create(face, NULL);
+		// TODO: how do i free a hb_font_t *?
+		lbl->hb_font = font;
+		lbl->ft_face = face;
+	}
+	if (lbl->changed & LABEL_CHANGED_TEXT) {
+		hb_buffer_clear_contents(lbl->hb_buf);
+		hb_buffer_add_utf8(lbl->hb_buf, lbl->text, -1, 0, -1);
+		hb_buffer_set_direction(lbl->hb_buf, HB_DIRECTION_LTR);
+		hb_buffer_set_script(lbl->hb_buf, HB_SCRIPT_LATIN); // TODO: make script,lang,direction configurable
+		hb_buffer_set_language(lbl->hb_buf, hb_language_from_string("en", -1));
+	}
+	if (lbl->changed & (LABEL_CHANGED_FONT | LABEL_CHANGED_TEXT)) {
+		hb_shape(lbl->hb_font, lbl->hb_buf, NULL, 0);
+	}
+	
+	unsigned nglyphs = 0;
+	hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(lbl->hb_buf, &nglyphs);
+	hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(lbl->hb_buf, &nglyphs);
+	
+	// TODO: position the baseline in a sensible spot
+	int cur_x = 0, cur_y = 2 * height / 3;
+	for (unsigned i = 0; i < nglyphs; ++i) {
+		int x_offset = glyph_pos[i].x_offset / 64;
+		int y_offset = glyph_pos[i].y_offset / 64;
+		FT_Load_Glyph(lbl->ft_face, glyph_info[i].codepoint, FT_LOAD_DEFAULT);
+		FT_Render_Glyph(lbl->ft_face->glyph, FT_RENDER_MODE_NORMAL);
+		draw_glyph(atto, &lbl->ft_face->glyph->bitmap, lbl->fg,
+		           cur_x + x_offset + lbl->ft_face->glyph->bitmap_left,
+		           cur_y + y_offset - lbl->ft_face->glyph->bitmap_top,
+		           offset, width, height, stride);
+		cur_x += glyph_pos[i].x_advance / 64;
+		cur_y += glyph_pos[i].y_advance / 64;
+	}
+}
+
+void
+draw_glyph(struct attoui *atto, FT_Bitmap *bitmap, uint32_t fg, uint16_t x, uint16_t y,
+           uint32_t offset, uint32_t width, uint32_t height, uint32_t stride)
+{
+	for (int row = 0; row < bitmap->rows; ++row) {
+		if (row + y < height) {
+			for (int col = 0; col < bitmap->width; ++col) {
+				if (col + x < width) {
+					// Blend colors (i don't know what i'm doing here, tell me if it's wrong pls)
+					int gray = bitmap->buffer[row * bitmap->pitch + col];
+					uint32_t c1 = BUF_GET(col + x, row + y);
+					int r1 = (c1 & 0xff0000) >> 16;
+					int g1 = (c1 & 0x00ff00) >> 8;
+					int b1 = (c1 & 0x0000ff);
+					int r2 = (fg & 0xff0000) >> 16;
+					int g2 = (fg & 0x00ff00) >> 8;
+					int b2 = (fg & 0x0000ff);
+					int r = (r2 * gray + r1 * (255 - gray)) / 256;
+					int g = (g2 * gray + g1 * (255 - gray)) / 256;
+					int b = (b2 * gray + b1 * (255 - gray)) / 256;
+					BUF_SET(col + x, row + y, ATTOUI_RGB(r, g, b));
+				}
+			}
+		}
+	}
 }
 
 #undef BUF_GET
