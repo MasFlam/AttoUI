@@ -13,11 +13,15 @@ atto_label_new(const struct atto_label_options *opts)
 				free(lbl);
 				return NULL;
 			}
+		} else {
+			lbl->text = NULL;
 		}
 		lbl->fg = opts->fg;
+		lbl->font_size = opts->font_size > 0 ? opts->font_size : 12;
 	} else {
 		lbl->text = NULL;
 		lbl->fg = ATTOUI_BLACK;
+		lbl->font_size = 12;
 	}
 	lbl->hb_buf = hb_buffer_create();
 	if (!lbl->hb_buf) {
@@ -48,6 +52,20 @@ atto_label_set_text(struct atto_label *lbl, const char *text)
 	}
 	lbl->changed |= LABEL_CHANGED_TEXT;
 	return 0;
+}
+
+unsigned int
+atto_label_get_font_size(struct atto_label *lbl)
+{
+	return lbl->font_size;
+}
+
+unsigned int
+atto_label_set_font_size(struct atto_label *lbl, unsigned int font_size)
+{
+	unsigned int old = lbl->font_size;
+	lbl->font_size = font_size;
+	return old;
 }
 
 uint32_t

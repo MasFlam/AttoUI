@@ -70,5 +70,6 @@ struct atto_label {
 	hb_buffer_t *hb_buf;
 	hb_font_t *hb_font;
 	FT_Face ft_face;
+	unsigned int font_size;
 	uint32_t fg;
 };

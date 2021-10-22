@@ -88,12 +88,15 @@ uint32_t atto_progbar_set_bg(struct atto_progbar *pb, uint32_t bg);
 
 struct atto_label_options {
 	const char *text;
+	unsigned int font_size;
 	uint32_t fg;
 };
 
 struct atto_label *atto_label_new(const struct atto_label_options *opts);
 const char *atto_label_get_text(struct atto_label *lbl);
 int atto_label_set_text(struct atto_label *lbl, const char *text);
+unsigned int atto_label_get_font_size(struct atto_label *lbl);
+unsigned int atto_label_set_font_size(struct atto_label *lbl, unsigned int font_size);
 uint32_t atto_label_get_fg(struct atto_label *lbl);
 uint32_t atto_label_set_fg(struct atto_label *lbl, uint32_t fg);
 

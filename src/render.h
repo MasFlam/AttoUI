@@ -146,8 +146,7 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
 	if (lbl->changed & LABEL_CHANGED_FONT) {
 		FT_Face face;
 		FT_New_Face(atto->ft, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0, &face); // TODO: use fontconfig
-		// TODO: adjustable label font size
-		FT_Set_Char_Size(face, 0, 100*64, 0, 0); // TODO: plug in DPI into here
+		FT_Set_Char_Size(face, 0, lbl->font_size * 64, 0, 0); // TODO: plug in DPI into here
 		hb_font_t *font = hb_ft_font_create(face, NULL);
 		// TODO: how do i free a hb_font_t *?
 		lbl->hb_font = font;
@@ -164,13 +163,22 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
 		hb_shape(lbl->hb_font, lbl->hb_buf, NULL, 0);
 	}
 	
-	unsigned nglyphs = 0;
+	unsigned int nglyphs = 0;
 	hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(lbl->hb_buf, &nglyphs);
 	hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(lbl->hb_buf, &nglyphs);
 	
-	// TODO: position the baseline in a sensible spot
-	int cur_x = 0, cur_y = 2 * height / 3;
-	for (unsigned i = 0; i < nglyphs; ++i) {
+	int text_width = 0;
+	for (unsigned int i = 0; i < nglyphs; ++i) {
+		text_width += glyph_pos[i].x_advance / 64;
+	}
+	
+	hb_font_extents_t exts;
+	hb_font_get_extents_for_direction(lbl->hb_font, HB_DIRECTION_LTR, &exts);
+	int asc = exts.ascender / 64, desc = -exts.descender / 64;
+	
+	int cur_x = width / 2 - text_width / 2;
+	int cur_y = height / 2 - desc + (asc + desc) / 2;
+	for (unsigned int i = 0; i < nglyphs; ++i) {
 		int x_offset = glyph_pos[i].x_offset / 64;
 		int y_offset = glyph_pos[i].y_offset / 64;
 		FT_Load_Glyph(lbl->ft_face, glyph_info[i].codepoint, FT_LOAD_DEFAULT);
@@ -182,6 +190,8 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
 		cur_x += glyph_pos[i].x_advance / 64;
 		cur_y += glyph_pos[i].y_advance / 64;
 	}
+	
+	lbl->changed = 0;
 }
 
 void
