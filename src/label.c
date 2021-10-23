@@ -16,10 +16,20 @@ atto_label_new(const struct atto_label_options *opts)
 		} else {
 			lbl->text = NULL;
 		}
+		if (opts->font) {
+			lbl->font = strdup(opts->font);
+			if (!lbl->font) {
+				free(lbl->text);
+				free(lbl);
+				return NULL;
+			}
+		} else {
+			lbl->font = NULL;
+		}
 		lbl->fg = opts->fg;
 		lbl->font_size = opts->font_size > 0 ? opts->font_size : 12;
 	} else {
-		lbl->text = NULL;
+		lbl->text = lbl->font = NULL;
 		lbl->fg = ATTOUI_BLACK;
 		lbl->font_size = 12;
 	}
@@ -29,6 +39,9 @@ atto_label_new(const struct atto_label_options *opts)
 		free(lbl);
 		return NULL;
 	}
+	lbl->hb_font = NULL;
+	lbl->ft_face = NULL;
+	lbl->fontpath = NULL;
 	lbl->changed = LABEL_CHANGED_ALL;
 	return lbl;
 }
@@ -54,6 +67,23 @@ atto_label_set_text(struct atto_label *lbl, const char *text)
 	return 0;
 }
 
+const char *
+atto_label_get_font(struct atto_label *lbl)
+{
+	return lbl->font;
+}
+
+int
+atto_label_set_font(struct atto_label *lbl, const char *font)
+{
+	char *newfont = strdup(font);
+	if (!newfont) return -1;
+	free(lbl->font);
+	lbl->font = newfont;
+	lbl->changed |= LABEL_CHANGED_FONT;
+	return 0;
+}
+
 unsigned int
 atto_label_get_font_size(struct atto_label *lbl)
 {
@@ -65,6 +95,7 @@ atto_label_set_font_size(struct atto_label *lbl, unsigned int font_size)
 {
 	unsigned int old = lbl->font_size;
 	lbl->font_size = font_size;
+	lbl->changed |= LABEL_CHANGED_FONT_SIZE;
 	return old;
 }
 

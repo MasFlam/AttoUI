@@ -141,17 +141,42 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
                   uint32_t height, uint32_t stride)
 {
 	struct atto_label *lbl = wgt;
-	if (!lbl->text) return;
+	if (!lbl->text || !lbl->font) return;
 	
 	if (lbl->changed & LABEL_CHANGED_FONT) {
+		FcPattern *pat = FcNameParse((void *) lbl->font);
+		FcConfigSubstitute(NULL, pat, FcMatchPattern);
+		FcDefaultSubstitute(pat);
+		
+		FcResult res;
+		FcPattern *pat2 = FcFontMatch(NULL, pat, &res);
+		FcPatternDestroy(pat);
+		if (pat2) {
+			FcChar8 *path; // this need not be freed, the fontconfig docs say
+			if (FcPatternGetString(pat2, FC_FILE, 0, &path) == FcResultMatch) {
+				free(lbl->fontpath);
+				lbl->fontpath = strdup((void *) path);
+				if (!lbl->fontpath) {
+					FcPatternDestroy(pat2);
+					return;
+				}
+			}
+			FcPatternDestroy(pat2);
+		}
+	}
+	
+	if (lbl->changed & (LABEL_CHANGED_FONT | LABEL_CHANGED_FONT_SIZE)) {
 		FT_Face face;
-		FT_New_Face(atto->ft, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0, &face); // TODO: use fontconfig
+		FT_New_Face(atto->ft, lbl->fontpath, 0, &face);
 		FT_Set_Char_Size(face, 0, lbl->font_size * 64, 0, 0); // TODO: plug in DPI into here
+		
 		hb_font_t *font = hb_ft_font_create(face, NULL);
-		// TODO: how do i free a hb_font_t *?
+		if (lbl->hb_font) hb_font_destroy(lbl->hb_font);
+		if (lbl->ft_face) FT_Done_Face(lbl->ft_face);
 		lbl->hb_font = font;
 		lbl->ft_face = face;
 	}
+	
 	if (lbl->changed & LABEL_CHANGED_TEXT) {
 		hb_buffer_clear_contents(lbl->hb_buf);
 		hb_buffer_add_utf8(lbl->hb_buf, lbl->text, -1, 0, -1);
@@ -159,7 +184,8 @@ void render_label(struct attoui *atto, void *wgt, uint32_t offset, uint32_t widt
 		hb_buffer_set_script(lbl->hb_buf, HB_SCRIPT_LATIN); // TODO: make script,lang,direction configurable
 		hb_buffer_set_language(lbl->hb_buf, hb_language_from_string("en", -1));
 	}
-	if (lbl->changed & (LABEL_CHANGED_FONT | LABEL_CHANGED_TEXT)) {
+	
+	if (lbl->changed & (LABEL_CHANGED_FONT | LABEL_CHANGED_FONT_SIZE | LABEL_CHANGED_TEXT)) {
 		hb_shape(lbl->hb_font, lbl->hb_buf, NULL, 0);
 	}
 	

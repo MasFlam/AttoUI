@@ -23,6 +23,7 @@ main()
 	atto_grid_set(grid, 0, 0, (void *) pb2);
 	struct atto_label *lbl = atto_label_new(&(struct atto_label_options) {
 		.text = "Hijack",
+		.font = "Fira Code:bold,monospace",
 		.font_size = 42,
 		.fg = ATTOUI_RGB(127, 0, 127)
 	});

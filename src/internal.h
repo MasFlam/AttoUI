@@ -8,9 +8,10 @@
 #include <attoui.h>
 
 #define LABEL_CHANGED_ALL (LABEL_CHANGED_FONT | LABEL_CHANGED_TEXT | LABEL_CHANGED_FG)
-#define LABEL_CHANGED_FONT (UINT16_C(1) << 0)
-#define LABEL_CHANGED_TEXT (UINT16_C(1) << 1)
-#define LABEL_CHANGED_FG (UINT16_C(1) << 2)
+#define LABEL_CHANGED_FONT      (UINT16_C(1) << 0)
+#define LABEL_CHANGED_FONT_SIZE (UINT16_C(1) << 1)
+#define LABEL_CHANGED_TEXT      (UINT16_C(1) << 2)
+#define LABEL_CHANGED_FG        (UINT16_C(1) << 3)
 
 struct attoui {
 	struct {
@@ -70,6 +71,8 @@ struct atto_label {
 	hb_buffer_t *hb_buf;
 	hb_font_t *hb_font;
 	FT_Face ft_face;
+	char *font;
+	char *fontpath;
 	unsigned int font_size;
 	uint32_t fg;
 };
