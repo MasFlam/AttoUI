@@ -125,7 +125,12 @@ atto_widget_free(struct atto_widget *wgt)
 	case ATTOUI_WIDGET_PROGBAR: free(wgt); break;
 	case ATTOUI_WIDGET_LABEL: {
 		struct atto_label *lbl = (void *) wgt;
+		if (lbl->hb_buf) hb_buffer_destroy(lbl->hb_buf);
+		if (lbl->hb_font) hb_font_destroy(lbl->hb_font);
+		if (lbl->ft_face) FT_Done_Face(lbl->ft_face);
 		free(lbl->text);
+		free(lbl->font);
+		free(lbl->fontpath);
 		free(lbl);
 	} break;
 	}
