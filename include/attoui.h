@@ -36,7 +36,13 @@ void atto_widget_free(struct atto_widget *wgt); // _NOT_ recursive!
 struct atto_widget *attoui_get_root(struct attoui *atto);
 struct atto_widget *attoui_set_root(struct attoui *atto, struct atto_widget *wgt);
 
+typedef void (*atto_box_button_cb_t)(struct attoui *atto, struct atto_box *bx,
+                                     void *userptr, uint32_t button, int pressed);
+
 struct atto_box_options {
+	struct atto_widget *widget;
+	atto_box_button_cb_t button_cb;
+	void *userptr;
 	uint16_t pad_left;
 	uint16_t pad_right;
 	uint16_t pad_top;
@@ -50,6 +56,10 @@ struct atto_box_options {
 struct atto_box *atto_box_new(const struct atto_box_options *opts);
 struct atto_widget *atto_box_get_widget(struct atto_box *bx);
 struct atto_widget *atto_box_set_widget(struct atto_box *bx, struct atto_widget *wgt);
+atto_box_button_cb_t atto_box_get_button_cb(struct atto_box *bx);
+atto_box_button_cb_t atto_box_set_button_cb(struct atto_box *bx, atto_box_button_cb_t cb);
+void *atto_box_get_userptr(struct atto_box *bx);
+void *atto_box_set_userptr(struct atto_box *bx, void *userptr);
 void atto_box_get_pad(struct atto_box *bx, uint16_t *left, uint16_t *right, uint16_t *top, uint16_t *bottom);
 void atto_box_set_pad(struct atto_box *bx, int16_t left, int16_t right, int16_t top, int16_t bottom);
 uint16_t atto_box_get_border_width(struct atto_box *bx);
@@ -71,6 +81,7 @@ struct atto_widget *atto_grid_get(struct atto_grid *grid, uint16_t x, uint16_t y
 struct atto_widget *atto_grid_set(struct atto_grid *grid, uint16_t x, uint16_t y, struct atto_widget *wgt);
 
 struct atto_progbar_options {
+	double progress; // normalized to [0, 1]
 	int vertical;
 	uint32_t fg;
 	uint32_t bg;

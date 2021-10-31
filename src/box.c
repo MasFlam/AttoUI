@@ -20,14 +20,42 @@ atto_box_new(const struct atto_box_options *opts)
 struct atto_widget *
 atto_box_get_widget(struct atto_box *bx)
 {
-	return bx->widget;
+	return bx->o.widget;
 }
 
 struct atto_widget *
 atto_box_set_widget(struct atto_box *bx, struct atto_widget *wgt)
 {
-	struct atto_widget *old = bx->widget;
-	bx->widget = wgt;
+	struct atto_widget *old = bx->o.widget;
+	bx->o.widget = wgt;
+	return old;
+}
+
+atto_box_button_cb_t
+atto_box_get_button_cb(struct atto_box *bx)
+{
+	return bx->o.button_cb;
+}
+
+atto_box_button_cb_t
+atto_box_set_button_cb(struct atto_box *bx, atto_box_button_cb_t cb)
+{
+	atto_box_button_cb_t old = bx->o.button_cb;
+	bx->o.button_cb = cb;
+	return old;
+}
+
+void *
+atto_box_get_userptr(struct atto_box *bx)
+{
+	return bx->o.userptr;
+}
+
+void *
+atto_box_set_userptr(struct atto_box *bx, void *userptr)
+{
+	void *old = bx->o.userptr;
+	bx->o.userptr = userptr;
 	return old;
 }
 

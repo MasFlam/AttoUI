@@ -4,7 +4,7 @@
 #define PIXEL_SIZE 4
 
 static inline void handle_button_event(struct attoui *atto, struct atto_widget *wgt,
-                                       uint32_t button, uint32_t state,
+                                       uint32_t button, int pressed,
                                        uint32_t width, uint32_t height,
                                        int pointer_x, int pointer_y);
 static void pointer_listener_button_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
@@ -116,6 +116,7 @@ attoui_render(struct attoui *atto)
 	// Swap buffers
 	wl_surface_attach(atto->wl.surf, atto->wl.buff[0], 0, 0);
 	wl_surface_commit(atto->wl.surf);
+	wl_display_roundtrip(atto->wl.disp);
 	void *temp = atto->bufs[0];
 	atto->bufs[0] = atto->bufs[1];
 	atto->bufs[1] = temp;
@@ -180,23 +181,26 @@ attoui_set_root(struct attoui *atto, struct atto_widget *wgt)
 }
 
 void
-handle_button_event(struct attoui *atto, struct atto_widget *wgt, uint32_t button, uint32_t state,
+handle_button_event(struct attoui *atto, struct atto_widget *wgt, uint32_t button, int pressed,
                     uint32_t width, uint32_t height, int pointer_x, int pointer_y)
 {
-	printf("button event @ local x y %d %d\n", pointer_x, pointer_y);
+	printf("button event (pressed=%d) @ local x y %d %d\n", pressed, pointer_x, pointer_y);
 	switch (wgt->wgt_type) {
 	case ATTOUI_WIDGET_LAYOUT: {
 		struct atto_layout *lyt = (void *) wgt;
 		switch (lyt->lyt_type) {
 		case ATTOUI_LAYOUT_BOX: {
 			struct atto_box *bx = (void *) lyt;
-			if (bx->widget) {
+			if (bx->o.button_cb) {
+				bx->o.button_cb(atto, bx, bx->o.userptr, button, pressed);
+			}
+			if (bx->o.widget) {
 				int newx = pointer_x - bx->o.pad_left;
 				int newy = pointer_y - bx->o.pad_top;
 				uint32_t neww = width - bx->o.pad_left - bx->o.pad_right;
 				uint32_t newh = height - bx->o.pad_top - bx->o.pad_bottom;
 				if (newx > 0 && newy > 0 && newx < neww && newy < newh) {
-					handle_button_event(atto, bx->widget, button, state,
+					handle_button_event(atto, bx->o.widget, button, pressed,
 					                    neww, newh, newx, newy);
 				}
 			}
@@ -212,7 +216,7 @@ handle_button_event(struct attoui *atto, struct atto_widget *wgt, uint32_t butto
 						int newx = pointer_x - x * cell_w;
 						int newy = pointer_y - y * cell_h;
 						if (newx > 0 && newy > 0 && newx < cell_w && newy < cell_h) {
-							handle_button_event(atto, grid->slots[i], button, state,
+							handle_button_event(atto, grid->slots[i], button, pressed,
 							                    cell_w, cell_h, newx, newy);
 						}
 					}
@@ -232,7 +236,7 @@ pointer_listener_button_fn(void *data, struct wl_pointer *pointer, uint32_t seri
 	struct attoui *atto = data;
 	if (!atto->is_focused) return;
 	if (atto->root) {
-		handle_button_event(atto, atto->root, button, state,
+		handle_button_event(atto, atto->root, button, state != 0,
 		                    atto->width, atto->height,
 		                    wl_fixed_to_int(atto->pointer_x),
 		                    wl_fixed_to_int(atto->pointer_y));

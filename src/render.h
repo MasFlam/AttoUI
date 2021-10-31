@@ -79,8 +79,8 @@ render_box(struct attoui *atto, void *wgt, uint32_t offset, uint32_t width,
 		}
 	}
 	
-	if (box->widget) {
-		render_widget(atto, box->widget,
+	if (box->o.widget) {
+		render_widget(atto, box->o.widget,
 		              offset + box->o.pad_top * stride + box->o.pad_left * PIXEL_SIZE,
 		              width - box->o.pad_left - box->o.pad_right,
 		              height - box->o.pad_top - box->o.pad_bottom,
@@ -112,26 +112,26 @@ render_progbar(struct attoui *atto, void *wgt, uint32_t offset, uint32_t width,
                uint32_t height, uint32_t stride)
 {
 	struct atto_progbar *pb = wgt;
-	if (pb->vertical) {
-		uint16_t front_y = pb->progress * height;
+	if (pb->o.vertical) {
+		uint16_t front_y = pb->o.progress * height;
 		for (uint16_t y = 0; y < front_y; ++y) {
 			for (uint16_t x = 0; x < width; ++x) {
-				BUF_SET(x, y, pb->fg);
+				BUF_SET(x, y, pb->o.fg);
 			}
 		}
 		for (uint16_t y = front_y; y < height; ++y) {
 			for (uint16_t x = 0; x < width; ++x) {
-				BUF_SET(x, y, pb->bg);
+				BUF_SET(x, y, pb->o.bg);
 			}
 		}
 	} else {
-		uint16_t front_x = pb->progress * width;
+		uint16_t front_x = pb->o.progress * width;
 		for (uint16_t y = 0; y < height; ++y) {
 			for (uint16_t x = 0; x < front_x; ++x) {
-				BUF_SET(x, y, pb->fg);
+				BUF_SET(x, y, pb->o.fg);
 			}
 			for (uint16_t x = front_x; x < width; ++x) {
-				BUF_SET(x, y, pb->bg);
+				BUF_SET(x, y, pb->o.bg);
 			}
 		}
 	}

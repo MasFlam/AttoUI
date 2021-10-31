@@ -51,7 +51,6 @@ struct atto_layout {
 struct atto_box {
 	struct atto_layout lyt;
 	struct atto_box_options o;
-	struct atto_widget *widget;
 };
 
 struct atto_grid {
@@ -63,10 +62,7 @@ struct atto_grid {
 
 struct atto_progbar {
 	struct atto_widget wgt;
-	double progress; // normalized to [0, 1]
-	int vertical;
-	uint32_t fg;
-	uint32_t bg;
+	struct atto_progbar_options o;
 };
 
 struct atto_label {
