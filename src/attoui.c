@@ -3,12 +3,40 @@
 
 #define PIXEL_SIZE 4
 
+static inline void handle_button_event(struct attoui *atto, struct atto_widget *wgt,
+                                       uint32_t button, uint32_t state,
+                                       uint32_t width, uint32_t height,
+                                       int pointer_x, int pointer_y);
+static void pointer_listener_button_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                                       uint32_t time, uint32_t button, uint32_t state);
+static void pointer_listener_enter_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                                      struct wl_surface *surf, wl_fixed_t x, wl_fixed_t y);
+static void pointer_listener_leave_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                                      struct wl_surface *surf);
+static void pointer_listener_motion_fn(void *data, struct wl_pointer *pointer, uint32_t time,
+                                      wl_fixed_t x, wl_fixed_t y);
 static void registry_listener_global_fn(void *data, struct wl_registry *reg, uint32_t name,
                                         const char *interface, uint32_t version);
 static inline void render_widget(struct attoui *atto, struct atto_widget *wgt, uint32_t offset,
                                  uint32_t width, uint32_t height, uint32_t stride);
 
 #include "render.h"
+
+static const struct wl_pointer_listener pointer_listener = {
+	.enter = pointer_listener_enter_fn,
+	.leave = pointer_listener_leave_fn,
+	.motion = pointer_listener_motion_fn,
+	.button = pointer_listener_button_fn,
+	.axis = noopcb_pointer_axis,
+	.frame = noopcb_pointer_frame,
+	.axis_source = noopcb_pointer_axis_source,
+	.axis_stop = noopcb_pointer_axis_stop,
+	.axis_discrete = noopcb_pointer_axis_discrete
+};
+static const struct wl_registry_listener registry_listener = {
+	.global = registry_listener_global_fn,
+	.global_remove = noopcb_registry_global_remove
+};
 
 struct attoui *
 attoui_init(const struct attoui_options *opts)
@@ -47,15 +75,16 @@ attoui_init(const struct attoui_options *opts)
 	}
 	
 	struct wl_registry *reg = wl_display_get_registry(atto->wl.disp);
-	wl_registry_add_listener(reg, &(struct wl_registry_listener) {
-		.global = registry_listener_global_fn,
-		.global_remove = NULL // I hope this is allowed?
-	}, atto);
+	wl_registry_add_listener(reg, &registry_listener, atto);
 	wl_display_roundtrip(atto->wl.disp);
 	
 	atto->wl.surf = wl_compositor_create_surface(atto->wl.comp);
 	atto->wl.shell_surf = wl_shell_get_shell_surface(atto->wl.shell, atto->wl.surf);
 	wl_shell_surface_set_toplevel(atto->wl.shell_surf);
+	
+	atto->wl.pointer = wl_seat_get_pointer(atto->wl.seat);
+	wl_pointer_add_listener(atto->wl.pointer, &pointer_listener, atto);
+	wl_display_roundtrip(atto->wl.disp);
 	
 	size_t size = (size_t) atto->stride * atto->height;
 	atto->buffd = memfd_create("buffers", 0);
@@ -151,12 +180,105 @@ attoui_set_root(struct attoui *atto, struct atto_widget *wgt)
 }
 
 void
+handle_button_event(struct attoui *atto, struct atto_widget *wgt, uint32_t button, uint32_t state,
+                    uint32_t width, uint32_t height, int pointer_x, int pointer_y)
+{
+	printf("button event @ local x y %d %d\n", pointer_x, pointer_y);
+	switch (wgt->wgt_type) {
+	case ATTOUI_WIDGET_LAYOUT: {
+		struct atto_layout *lyt = (void *) wgt;
+		switch (lyt->lyt_type) {
+		case ATTOUI_LAYOUT_BOX: {
+			struct atto_box *bx = (void *) lyt;
+			if (bx->widget) {
+				int newx = pointer_x - bx->o.pad_left;
+				int newy = pointer_y - bx->o.pad_top;
+				uint32_t neww = width - bx->o.pad_left - bx->o.pad_right;
+				uint32_t newh = height - bx->o.pad_top - bx->o.pad_bottom;
+				if (newx > 0 && newy > 0 && newx < neww && newy < newh) {
+					handle_button_event(atto, bx->widget, button, state,
+					                    neww, newh, newx, newy);
+				}
+			}
+		} break;
+		case ATTOUI_LAYOUT_GRID: {
+			struct atto_grid *grid = (void *) lyt;
+			uint32_t cell_h = height / grid->h;
+			uint32_t cell_w = width / grid->w;
+			for (uint32_t y = 0; y < grid->h; ++y) {
+				for (uint32_t x = 0; x < grid->w; ++x) {
+					uint32_t i = grid->w * y + x;
+					if (grid->slots[i]) {
+						int newx = pointer_x - x * cell_w;
+						int newy = pointer_y - y * cell_h;
+						if (newx > 0 && newy > 0 && newx < cell_w && newy < cell_h) {
+							handle_button_event(atto, grid->slots[i], button, state,
+							                    cell_w, cell_h, newx, newy);
+						}
+					}
+				}
+			}
+		} break;
+		}
+	} break;
+	}
+}
+
+void
+pointer_listener_button_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                           uint32_t time, uint32_t button, uint32_t state)
+{
+	//printf("button\n");
+	struct attoui *atto = data;
+	if (!atto->is_focused) return;
+	if (atto->root) {
+		handle_button_event(atto, atto->root, button, state,
+		                    atto->width, atto->height,
+		                    wl_fixed_to_int(atto->pointer_x),
+		                    wl_fixed_to_int(atto->pointer_y));
+	}
+}
+
+void
+pointer_listener_enter_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                          struct wl_surface *surf, wl_fixed_t x, wl_fixed_t y)
+{
+	//printf("enter\n");
+	struct attoui *atto = data;
+	atto->is_focused = 1;
+	atto->pointer_x = x;
+	atto->pointer_y = y;
+}
+
+void
+pointer_listener_leave_fn(void *data, struct wl_pointer *pointer, uint32_t serial,
+                          struct wl_surface *surf)
+{
+	//printf("leave\n");
+	struct attoui *atto = data;
+	atto->is_focused = 0;
+}
+
+void
+pointer_listener_motion_fn(void *data, struct wl_pointer *pointer, uint32_t time,
+                           wl_fixed_t x, wl_fixed_t y)
+{
+	//printf("motion\n");
+	struct attoui *atto = data;
+	if (!atto->is_focused) return;
+	atto->pointer_x = x;
+	atto->pointer_y = y;
+}
+
+void
 registry_listener_global_fn(void *data, struct wl_registry *reg, uint32_t name,
                             const char *interface, uint32_t version)
 {
 	struct attoui *atto = data;
 	if (strcmp(interface, "wl_compositor") == 0) {
 		atto->wl.comp = wl_registry_bind(reg, name, &wl_compositor_interface, 3);
+	} else if (strcmp(interface, "wl_seat") == 0) {
+		atto->wl.seat = wl_registry_bind(reg, name, &wl_seat_interface, 1);
 	} else if (strcmp(interface, "wl_shm") == 0) {
 		atto->wl.shm = wl_registry_bind(reg, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, "wl_shell") == 0) {

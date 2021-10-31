@@ -6,6 +6,7 @@
 #include <fontconfig/fontconfig.h>
 #include <wayland-client.h>
 #include <attoui.h>
+#include "noop-cb.h"
 
 #define LABEL_CHANGED_ALL (LABEL_CHANGED_FONT | LABEL_CHANGED_FONT_SIZE | LABEL_CHANGED_TEXT | LABEL_CHANGED_FG)
 #define LABEL_CHANGED_FONT      (UINT16_C(1) << 0)
@@ -17,6 +18,8 @@ struct attoui {
 	struct {
 		struct wl_display *disp;
 		struct wl_compositor *comp;
+		struct wl_seat *seat;
+		struct wl_pointer *pointer;
 		struct wl_shm *shm;
 		struct wl_shell *shell;
 		struct wl_surface *surf;
@@ -30,6 +33,8 @@ struct attoui {
 	uint32_t width;
 	uint32_t height;
 	uint32_t stride;
+	int is_focused;
+	wl_fixed_t pointer_x, pointer_y;
 	FT_Library ft;
 	struct atto_widget *root;
 };
